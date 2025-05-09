@@ -5,6 +5,7 @@
 #include "pair.hpp"
 
 #include <array>
+#include <concepts>
 #include <cstdint>
 #include <expected>
 #include <functional>
@@ -34,6 +35,15 @@ struct Inputs {
   }
 
   using callback_t = void(int32_t, int32_t, unsigned char const *);
+
+  // Niebloid conversion from other types (typically derived) to this class, for use in functional sequences
+  static constexpr struct {
+    [[nodiscard]] auto operator()(auto &&source) const -> std::expected<std::reference_wrapper<Inputs>, std::nullptr_t>
+      requires std::convertible_to<decltype(source) &, Inputs &>
+    {
+      return std::ref(static_cast<Inputs &>(source)); // NOTE: forced lvalue
+    }
+  } cast = {};
 
 private:
   virtual bool next_a(std::move_only_function<callback_t>) = 0;

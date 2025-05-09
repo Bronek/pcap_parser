@@ -6,6 +6,8 @@
 #include <filesystem>
 #include <iostream>
 #include <string>
+#include <type_traits>
+#include <utility>
 
 using input_files = std::array<std::string, 2>;
 
@@ -52,6 +54,24 @@ struct exception final {
   throw exception(code);
 }
 
+namespace detail {
+template <typename> constexpr bool _is_some_expected = false;
+template <typename T, typename E> constexpr bool _is_some_expected<std::expected<T, E> &> = true;
+template <typename T, typename E> constexpr bool _is_some_expected<std::expected<T, E> const &> = true;
+} // namespace detail
+template <typename T>
+concept some_expected = detail::_is_some_expected<T &>;
+
+auto operator|(some_expected auto &&monad, auto &&fn) //
+    -> std::invoke_result_t<decltype(fn), decltype(std::forward<decltype(monad)>(monad).value())>
+{
+  if (monad) {
+    return std::invoke(fn, std::forward<decltype(monad)>(monad).value());
+  }
+  fail(1, monad.error());
+  std::unreachable();
+}
+
 auto main(int argc, char const **argv) -> int
 {
   try {
@@ -59,27 +79,8 @@ auto main(int argc, char const **argv) -> int
       fail(13, "received ", argc - 1, " parameters but expected 1");
     }
 
-    auto files = find_inputs(argv[1]);
-    if (!files) {
-      fail(14, files.error().what());
-    }
-
-    auto const sorted_files = sort(*files);
-    if (!sorted_files) {
-      fail(15, sorted_files.error());
-    }
-
-    auto pcap_inputs = PcapInputs::make(*sorted_files);
-    if (!pcap_inputs) {
-      fail(16, pcap_inputs.error());
-    }
-
-    auto const result = stats::make(*pcap_inputs);
-    if (!result) {
-      fail(17, result.error());
-    }
-
-    std::cout << *result << std::endl;
+    find_inputs(argv[1]) | sort | PcapInputs::make | Inputs::cast | stats::make |
+        [](stats const &result) { std::cout << result << std::endl; };
   } catch (exception e) {
     return e.code;
   } catch (std::exception const &e) {
