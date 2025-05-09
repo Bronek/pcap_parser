@@ -2,7 +2,10 @@
 
 #include <regex>
 
-std::expected<pair<std::string>, error> sort(std::array<std::string, 2> const &files)
+std::string const channel_A = "14310";
+std::string const channel_B = "15310";
+
+auto sort(std::array<std::string, 2> const &files) -> std::expected<pair<std::string>, error>
 {
   pair<std::string> ret;
 
@@ -20,9 +23,9 @@ std::expected<pair<std::string>, error> sort(std::array<std::string, 2> const &f
   {
     std::smatch matches;
     std::regex_search(files[0], matches, regex);
-    if (matches.size() == 2 && matches[1].str() == "14310") {
+    if (matches.size() == 2 && matches[1].str() == channel_A) {
       ret.A = files[0];
-    } else if (matches.size() == 2 && matches[1].str() == "15310") {
+    } else if (matches.size() == 2 && matches[1].str() == channel_B) {
       ret.B = files[0];
     } else {
       return error::make("unexpected channel of first file: ", files[0]);
@@ -32,7 +35,7 @@ std::expected<pair<std::string>, error> sort(std::array<std::string, 2> const &f
   {
     std::smatch matches;
     std::regex_search(files[1], matches, regex);
-    std::string const expected = ret.A.empty() ? "14310" : "15310";
+    std::string const expected = ret.A.empty() ? channel_A : channel_B;
     if (matches.size() == 2 && matches[1].str() == expected) {
       (ret.A.empty() ? ret.A : ret.B) = files[1];
     } else {

@@ -1,5 +1,5 @@
 #include "lib/error.hpp"
-#include "lib/inputs.hpp"
+#include "lib/pcap_inputs.hpp"
 #include "lib/stats.hpp"
 
 #include <expected>
@@ -12,6 +12,7 @@
 using input_files = std::array<std::string, 2>;
 
 // TODO: write a std::filesystem wrapper to make this testable.
+// TODO: plenty of space for improvement here.
 auto find_inputs(std::string const &strpath) -> std::expected<input_files, error>
 {
   namespace fs = std::filesystem;
@@ -79,8 +80,12 @@ auto main(int argc, char const **argv) -> int
       fail(13, "received ", argc - 1, " parameters but expected 1");
     }
 
-    find_inputs(argv[1]) | sort | PcapInputs::make | Inputs::cast | stats::make |
-        [](stats const &result) { std::cout << result << std::endl; };
+    find_inputs(argv[1])   // untested (filesystem calls)
+        | sort             // tested
+        | PcapInputs::make // untested (pcap calls)
+        | Inputs::cast     // untested (trivial)
+        | stats::make      // not implemented
+        | [](stats const &result) { std::cout << result << std::endl; };
   } catch (exception e) {
     return e.code;
   } catch (std::exception const &e) {

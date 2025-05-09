@@ -27,7 +27,7 @@ struct error {
     return std::unexpected<error>(std::in_place, std::forward<decltype(args)>(args)...);
   }
 
-  [[nodiscard]] bool operator==(error const &other) const = default;
+  [[nodiscard]] auto operator==(error const &other) const noexcept -> bool = default;
 
 private:
   std::string what_;
