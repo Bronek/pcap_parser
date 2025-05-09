@@ -2,3 +2,7 @@ CompileFlags:
   Add: [-xc++, -std=c++23, -Wall, -Wextra]
   Remove: -W*
   Compiler: clang++
+Diagnostics:
+  ClangTidy:
+    Add: [modernize*, bugprone*, readability*]
+    Remove: [readability-magic-numbers, readability-static-accessed-through-instance]

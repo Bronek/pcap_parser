@@ -8,27 +8,26 @@
 #include <random>
 #include <unordered_set>
 
-
 constexpr int workerThreads = 5;
 constexpr int inputSize = 3;
 
-
-static_assert(inputSize <= 8); // Map every input to one of 8 functions below
-void f0(int &t, int i) { t += i + 12; }
-void f1(int &t, int i) { t += i * 2; }
-void f2(int &t, int i) { t += i / 2; }
-void f3(int &t, int i) { t += i * 5; }
-void f4(int &t, int i) { t += i / 5; }
-void f5(int &t, int i) { t += i - 40; }
-void f6(int &t, int i) { t += i % 12; }
-void f7(int &t, int i) { t += i * 12; }
+constexpr int maxInputSize = 8;
+static_assert(inputSize <= maxInputSize); // Map every input to one of 8 functions below
+void f0(int &total, int input) { total += input + 12; }
+void f1(int &total, int input) { total += input * 2; }
+void f2(int &total, int input) { total += input / 2; }
+void f3(int &total, int input) { total += input * 5; }
+void f4(int &total, int input) { total += input / 5; }
+void f5(int &total, int input) { total += input - 40; }
+void f6(int &total, int input) { total += input % 12; }
+void f7(int &total, int input) { total += input * 12; }
 using ft = void (*)(int &, int);
 
 struct accumulator {
   std::atomic<std::int64_t> count = 0;
   std::atomic<std::int64_t> total = 0;
 
-  std::chrono::steady_clock::time_point start() { return std::chrono::steady_clock::now(); }
+  static auto start() -> std::chrono::steady_clock::time_point { return std::chrono::steady_clock::now(); }
   void stop(std::chrono::steady_clock::time_point start)
   {
     auto const time = std::chrono::steady_clock::now() - start;
@@ -36,14 +35,15 @@ struct accumulator {
     total += time.count();
   }
 
-  inline friend std::ostream & operator<<(std::ostream &o, accumulator const &self)
+  friend auto operator<<(std::ostream &out, accumulator const &self) -> std::ostream &
   {
-    auto const c = self.count.load();
-    auto const t = self.total.load();
-    if (c == 0)
-      return (o << "N/A");
+    auto const count = self.count.load();
+    auto const total = self.total.load();
+    if (count == 0) {
+      return (out << "N/A");
+    }
 
-    return (o << t / c << " (" << c << ')');
+    return (out << total / count << " (" << count << ')');
   }
 };
 
@@ -54,8 +54,8 @@ void benchMap(int &dummy, int input, accumulator &acc)
   };
 
   auto const start = acc.start();
-  auto const p = fields.find(input);
-  (*(p->second))(dummy, input);
+  auto const fun = fields.find(input);
+  (*(fun->second))(dummy, input);
   acc.stop(start);
 }
 
@@ -64,8 +64,8 @@ void benchArray(int &dummy, int input, accumulator &acc)
   static std::array<ft, 8> fields = {&f0, &f1, &f2, &f3, &f4, &f5, &f6, &f7};
 
   auto const start = acc.start();
-  auto const p = fields[input];
-  (*p)(dummy, input);
+  auto const fun = fields[input];
+  (*fun)(dummy, input);
   acc.stop(start);
 }
 
@@ -97,14 +97,16 @@ void benchSwitch(int &dummy, int input, accumulator &acc)
   case 7:
     f7(dummy, input);
     break;
+  default:
+    std::unreachable();
   }
   acc.stop(start);
 }
 
 int main()
 {
-  std::atomic<int> i = 0;
-  std::atomic<std::size_t> k = 0;
+  std::atomic<int> counter = 0;
+  std::atomic<std::size_t> dummy = 0;
   accumulator accMap = {};
   accumulator accArray = {};
   accumulator accSwitch = {};
@@ -122,39 +124,42 @@ int main()
         std::ranlux48 rnd;
         rnd.seed(dev());
         std::uniform_int_distribution<int> dist(0, 1000);
-        int dummy = 0;
+        int local = 0;
 
-        auto const l = (i += 1);
-        if ((l % 100) == 0) {
+        auto const localc = (counter += 1);
+        if ((localc % 100) == 0) {
           // Actual benchmarks
-          if ((l % 300) == 0) {
-            benchMap(dummy, dist(rnd) % inputSize, accMap);
-          } else if (((l + 100) % 300) == 0) {
-            benchArray(dummy, dist(rnd) % inputSize, accArray);
+          if ((localc % 300) == 0) {
+            benchMap(local, dist(rnd) % inputSize, accMap);
+          } else if (((localc + 100) % 300) == 0) {
+            benchArray(local, dist(rnd) % inputSize, accArray);
           } else {
-            benchSwitch(dummy, dist(rnd) % inputSize, accSwitch);
+            benchSwitch(local, dist(rnd) % inputSize, accSwitch);
           }
 
-          k = dummy;
+          dummy = local;
           return;
         }
 
         // Pseudo-realistic background task
         std::unordered_set<int> set;
         while (true) {
-          auto const m = dist(rnd);
-          if (m < 5)
+          auto const dummy = dist(rnd);
+          if (dummy < 5) {
             break;
-          set.insert(m);
+          }
+          set.insert(dummy);
         }
-        if (set.empty())
+        if (set.empty()) {
           return;
+        }
 
         int total = 0;
-        for (auto const element : set)
+        for (auto const element : set) {
           total += element;
+        }
 
-        k += (total / set.size());
+        dummy += (total / set.size());
       });
     }
 
@@ -162,5 +167,5 @@ int main()
   }
 
   std::cout << "map: " << accMap << '\n' << "array: " << accArray << '\n' << "switch: " << accSwitch << std::endl;
-  return (((int)k * 10) % 5);
+  return (((int)dummy * 10) % 5);
 }

@@ -4,10 +4,10 @@
 #include <condition_variable>
 #include <functional>
 #include <future>
-#include <tuple>
 #include <mutex>
 #include <queue>
 #include <thread>
+#include <tuple>
 
 // Useful shortcut, equivalent to std::forward<decltype(...)>(...)
 #define FWD(...) static_cast<decltype(__VA_ARGS__) &&>(__VA_ARGS__)
@@ -23,35 +23,31 @@ struct threadpool {
   ~threadpool()
   {
     stop();
-    join();
+    join(); // similarly like std::jthread
   }
 
   void stop()
   {
-    {
-      std::unique_lock g(mutex_);
-      if (stopped_)
-        return;
-      stopped_ = true;
-      cv_.notify_all();
+    std::unique_lock guard(mutex_);
+    if (stopped_) {
+      return;
     }
+    stopped_ = true;
+    cv_.notify_all();
   }
 
-  void join()
-  {
-    // No need to call join(), std::jthread knows to do it
-    threads_.clear();
-  }
+  void join() { threads_.clear(); }
 
-  auto submit(auto &&f, auto &&...args) -> bool
+  auto submit(auto &&fun, auto &&...args) -> bool
   {
-    using result_t = std::invoke_result_t<decltype(f), std::remove_cvref_t<decltype(args)>&&...>;
-    std::packaged_task<result_t(decltype(args)...)> inner_task(FWD(f));
+    using result_t = std::invoke_result_t<decltype(fun), std::remove_cvref_t<decltype(args)> &&...>;
+    std::packaged_task<result_t(decltype(args)...)> inner_task(FWD(fun));
     auto future = inner_task.get_future();
 
-    std::lock_guard g(mutex_);
-    if (stopped_)
+    std::lock_guard guard(mutex_);
+    if (stopped_) {
       return false;
+    }
 
     queue_.emplace(                           //
         ([inner_task = std::move(inner_task), //
@@ -66,29 +62,32 @@ private:
   void run()
   {
     while (true) {
-      std::unique_lock g(mutex_);
-      if (queue_.empty())
-        cv_.wait(g, [&, this] { return !queue_.empty() || stopped_; });
+      std::unique_lock guard(mutex_);
+      constexpr auto predicate = [](threadpool &self) -> bool { return !self.queue_.empty() || self.stopped_; };
+      if (!predicate(*this)) {
+        cv_.wait(guard, [predicate, this] { return predicate(*this); });
+      }
 
-      // Do not leak any task, even when stopped
-      if (stopped_ && queue_.empty())
-        return;
-
-      if (queue_.empty())
+      if (queue_.empty()) {
+        if (stopped_) {
+          return;
+        }
         continue;
+      }
+      // else do not leak any task, even when stopped
 
-      auto t = std::move(queue_.front());
+      auto task = std::move(queue_.front());
       queue_.pop();
-      g.unlock();
+      guard.unlock();
 
-      t();
+      task();
     }
   }
 
-  using task = std::move_only_function<void()>;
+  using task_t = std::move_only_function<void()>;
 
   std::vector<std::jthread> threads_;
-  std::queue<task> queue_;
+  std::queue<task_t> queue_;
   bool stopped_ = false;
   std::mutex mutex_;
   std::condition_variable cv_;
