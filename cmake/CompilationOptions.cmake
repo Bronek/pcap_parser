@@ -10,21 +10,26 @@ function(append_compilation_options)
     endif()
 
     if(CMAKE_CXX_COMPILER_ID MATCHES "MSVC")
-        if(Options_WARNINGS)
-            # disable C4456: declaration of 'b' hides previous local declaration
-            target_compile_options(${Options_NAME} PRIVATE /W4 /wd4456)
-        endif()
-
         if(Options_OPTIMIZATION)
             target_compile_options(${Options_NAME} PRIVATE $<IF:$<CONFIG:Debug>,/Od,/Ox>)
         endif()
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "(Apple)?Clang")
-        if(Options_WARNINGS)
-            target_compile_options(${Options_NAME} PRIVATE -Wall -Wextra -Wpedantic -Werror -Wno-redundant-move)
-        endif()
 
+        if(Options_WARNINGS)
+            # disable C4456: declaration of 'b' hides previous local declaration
+            target_compile_options(${Options_NAME} PUBLIC /W4 /wd4456)
+        endif()
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "(Apple)?Clang")
         if(Options_OPTIMIZATION)
             target_compile_options(${Options_NAME} PRIVATE $<IF:$<CONFIG:Debug>,-O0 -fno-omit-frame-pointer,-O2>)
+        endif()
+
+        if(Options_WARNINGS)
+            target_compile_options(${Options_NAME} PUBLIC -Wall -Wextra -Wpedantic -Werror -Wno-redundant-move)
+        endif()
+
+        # Use libstdc++ for clang on Linux
+        if(NOT APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+            target_compile_options(${Options_NAME} PUBLIC -stdlib=libstdc++)
         endif()
     endif()
 endfunction()
