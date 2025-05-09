@@ -13,13 +13,14 @@ file(GLOB
 )
 
 add_library(lib ${LIB_SOURCES})
+target_link_libraries(lib PUBLIC pcap)
 append_compilation_options(lib WARNINGS)
 
 
 find_package(libpcap REQUIRED)
 add_executable(${PROJECT_NAME} main.cpp)
 target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(${PROJECT_NAME} lib pcap)
+target_link_libraries(${PROJECT_NAME} lib)
 append_compilation_options(${PROJECT_NAME} OPTIMIZATION)
 
 
