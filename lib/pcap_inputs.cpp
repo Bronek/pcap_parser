@@ -7,7 +7,8 @@
   };
   using file_handle = std::unique_ptr<FILE, file_closer>;
 
-  pair<file_handle> files = {.A{std::fopen(filenames.A.c_str(), "rb")}, .B{std::fopen(filenames.B.c_str(), "rb")}};
+  pair<file_handle> files = {.A = file_handle(std::fopen(filenames.A.c_str(), "rb")),
+                             .B = file_handle(std::fopen(filenames.B.c_str(), "rb"))};
   if (files.A == nullptr && files.B == nullptr) {
     return error::make("failed to open both files: ", filenames.A, ", ", filenames.B);
   }
@@ -22,7 +23,8 @@
   // NOTE: ::pcap_fopen_offline does not close FILE* on error execution paths. This means we need to close it
   // ourselves if this function fails, meaning we cannot use .release() here.
   // https://github.com/the-tcpdump-group/libpcap/blob/master/savefile.c#L467
-  pair<pcap_handle> ret = {.A{::pcap_fopen_offline(files.A.get(), buffer)}, .B{nullptr}};
+  pair<pcap_handle> ret = {.A = pcap_handle(::pcap_fopen_offline(files.A.get(), buffer)), //
+                           .B{nullptr}};
   // https://www.tcpdump.org/manpages/pcap_open_offline.3pcap.html
   if (ret.A == nullptr) {
     return error::make("invalid file A, error: ", buffer);
