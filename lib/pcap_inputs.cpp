@@ -19,16 +19,21 @@
   }
 
   char buffer[PCAP_ERRBUF_SIZE + 1] = {};
-  pair<pcap_handle> ret = {.A{::pcap_fopen_offline(files.A.release(), buffer)}, .B{nullptr}};
+  // NOTE: ::pcap_fopen_offline does not close FILE* on error execution paths. This means we need to close it
+  // ourselves if this function fails, meaning we cannot use .release() here.
+  // https://github.com/the-tcpdump-group/libpcap/blob/master/savefile.c#L467
+  pair<pcap_handle> ret = {.A{::pcap_fopen_offline(files.A.get(), buffer)}, .B{nullptr}};
   // https://www.tcpdump.org/manpages/pcap_open_offline.3pcap.html
   if (ret.A == nullptr) {
     return error::make("invalid file A, error: ", buffer);
   }
+  [[maybe_unused]] auto *_ = files.A.release(); // now owned by ret.A
 
-  ret.B.reset(::pcap_fopen_offline(files.B.release(), buffer));
+  ret.B.reset(::pcap_fopen_offline(files.B.get(), buffer));
   if (ret.B == nullptr) {
     return error::make("invalid file B, error: ", buffer);
   }
+  _ = files.B.release(); // now owned by ret.B
 
   return PcapInputs(std::move(ret));
 }
