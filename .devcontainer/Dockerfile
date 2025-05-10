@@ -105,6 +105,6 @@ RUN cp /etc/zsh/newuser.zshrc.recommended .zshrc ;\
     touch .zshrc.local ;\
     ln -s .profile .zprofile ;\
     echo 'export PATH=$(python -c "import site;print(site.getsitepackages()[0])")/clang_format/data/bin:${PATH}' >> .zprofile ;\
-    echo "alias to-gcc='export CC=/usr/bin/gcc; export CXX=/usr/bin/g++; unset CXXFLAGS; env | grep --color=never -E \"^CC=|^CXX=|^CXXFLAGS=\"'" >> ~/.zprofile ;\
-    echo "alias to-clang='export CC=/usr/bin/clang; export CXX=/usr/bin/clang++; export CXXFLAGS=-stdlib=libc++; env | grep --color=never -E \"^CC=|^CXX=|^CXXFLAGS=\"'" >> ~/.zprofile ;\
+    echo "alias to-gcc='export CC=/usr/bin/gcc; export CXX=/usr/bin/g++; unset CXXFLAGS; env | grep --color=never -E \"^CC=|^CXX=|^CXXFLAGS=\"; \$CXX --version | head -1'" >> ~/.zprofile ;\
+    echo "alias to-clang='export CC=/usr/bin/clang; export CXX=/usr/bin/clang++; unset CXXFLAGS; env | grep --color=never -E \"^CC=|^CXX=|^CXXFLAGS=\"; \$CXX --version | head -1'" >> ~/.zprofile ;\
     echo "alias rm-build='realpath . | grep \"^.*/\.build[^/]*$\" &>/dev/null && find -mindepth 1 -maxdepth 1 -type d -not -path ./_deps | xargs rm -rf {} \; && find -mindepth 1 -maxdepth 1 -type f | xargs rm -f {} \;'" >> ~/.zprofile
