@@ -19,6 +19,7 @@ auto sort_channels(std::array<std::string, 2> const &files) -> std::expected<pai
     return error::make("both filenames are identical");
   }
 
+  // NOTE: Assumption that channel is encoded as a penultimate group of numbers, '_' on one side and '-' on the other
   std::regex const regex(R"(^.*_([0-9]+)-[0-9]+.pcap$)");
   {
     std::smatch matches;
