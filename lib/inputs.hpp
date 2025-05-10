@@ -3,9 +3,8 @@
 
 #include "pair.hpp"
 
-#include <concepts>
-#include <cstdint>
 #include <functional>
+#include <span>
 #include <utility>
 
 // NOTE: I am using CamelCase for naming of polymorphic classes, like here
@@ -26,23 +25,12 @@ struct Inputs {
     }
   }
 
-  using callback_t = void(int32_t, int32_t, unsigned char const *);
-
-  // Niebloid conversion from other types (e.g. derived) to this class. Use as a bridge from polymorphic class hierarchy
-  // to functional style sequence, where left side is a concrete type, while right consumes reference to this class.
-  // NOTE: Not a regular function because argument type deduction does not (quite) work with pointer to a function.
-  static constexpr struct {
-    [[nodiscard]] auto operator()(auto &&source) const
-        noexcept(noexcept(static_cast<Inputs &>(source))) -> std::reference_wrapper<Inputs>
-      requires std::convertible_to<decltype(source) &, Inputs &>
-    {
-      return std::ref(static_cast<Inputs &>(source)); // NOTE: forced lvalue
-    }
-  } cast = {};
+  using data_t = std::span<unsigned char const>;
+  using data_callback_t = std::move_only_function<void(data_t)>;
 
 private:
-  virtual auto next_a(std::move_only_function<callback_t>) -> bool = 0;
-  virtual auto next_b(std::move_only_function<callback_t>) -> bool = 0;
+  virtual auto next_a(data_callback_t) -> bool = 0;
+  virtual auto next_b(data_callback_t) -> bool = 0;
 };
 
 #endif // LIB_ERROR

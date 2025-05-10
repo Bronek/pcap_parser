@@ -27,11 +27,12 @@ auto main(int argc, char const **argv) -> int
       fail(13, "received ", argc - 1, " parameters but expected 1");
     }
 
-    find_inputs(argv[1])              // untested (direct filesystem calls)
-        | and_then(&sort_channels)    // tested
-        | and_then(&PcapInputs::make) // untested (direct libpcap calls)
-        | transform(Inputs::cast)     // untested (trivial)
-        | and_then(&stats::make)      // not implemented
+    find_inputs(argv[1])                               // untested (direct filesystem calls)
+        | and_then(&sort_channels)                     // tested
+        | and_then(&PcapInputs::make)                  // untested (direct libpcap calls)
+        | transform([](PcapInputs &&inputs) -> stats { //
+            return stats::make(inputs);
+          })
         | transform([](stats const &result) -> void {
             std::cout << result << std::endl; //
           })

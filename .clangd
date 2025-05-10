@@ -5,4 +5,4 @@ CompileFlags:
 Diagnostics:
   ClangTidy:
     Add: [modernize*, bugprone*, readability*]
-    Remove: [readability-static-accessed-through-instance]
+    Remove: [readability-static-accessed-through-instance, readability-magic-numbers]

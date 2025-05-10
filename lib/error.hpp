@@ -5,22 +5,29 @@
 #include <ostream>
 #include <sstream>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 // NOTE: I am using snake_case for simple types, e.g. non-polymorphic, aggregate etc.
 
 // Representation of a simple error
 struct error final {
-  error(auto&& src) requires std::convertible_to<decltype(src), std::string> : what_(std::forward<decltype(src)>(src))
-  {
-  }
+  error(std::string what) : what_(std::move(what)) {}
+  error(char const *what) : what_(what) {}
 
-  error(auto &&...args)
+  explicit error(auto &&first, auto &&...args)
+    requires(not std::same_as<std::remove_cvref_t<decltype(first)>, error>)
   {
     std::ostringstream ss;
+    ss << first;
     ((ss << args), ...);
     what_ = ss.str();
   }
+
+  error(error const &) = default;
+  error(error &&) = default;
+  auto operator=(error const &) -> error & = default;
+  auto operator=(error &&) -> error & = default;
 
   [[nodiscard]] auto what() const noexcept -> std::string const & { return what_; }
 
@@ -35,6 +42,8 @@ struct error final {
 private:
   std::string what_;
 };
+
+static_assert(std::is_constructible_v<error, char const (&)[6], char const *, char const (&)[16]>);
 
 inline auto operator<<(std::ostream &output, error const &self) -> std::ostream & { return (output << self.what()); }
 
