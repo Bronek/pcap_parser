@@ -1,20 +1,12 @@
 #ifndef LIB_INPUTS
 #define LIB_INPUTS
 
-#include "error.hpp"
 #include "pair.hpp"
 
-#include <array>
 #include <concepts>
 #include <cstdint>
-#include <expected>
 #include <functional>
 #include <utility>
-
-#include <pcap.h>
-#include <pcap/pcap.h>
-
-std::expected<pair<std::string>, error> sort(std::array<std::string, 2> const &files);
 
 // NOTE: I am using CamelCase for naming of polymorphic classes, like here
 //
@@ -36,9 +28,12 @@ struct Inputs {
 
   using callback_t = void(int32_t, int32_t, unsigned char const *);
 
-  // Niebloid conversion from other types (typically derived) to this class, for use in functional sequences
+  // Niebloid conversion from other types (e.g. derived) to this class. Use as a bridge from polymorphic class hierarchy
+  // to functional style sequence, where left side is a concrete type, while right consumes reference to this class.
+  // NOTE: Not a regular function because argument type deduction does not (quite) work with pointer to a function.
   static constexpr struct {
-    [[nodiscard]] auto operator()(auto &&source) const -> std::expected<std::reference_wrapper<Inputs>, std::nullptr_t>
+    [[nodiscard]] auto operator()(auto &&source) const
+        noexcept(noexcept(static_cast<Inputs &>(source))) -> std::reference_wrapper<Inputs>
       requires std::convertible_to<decltype(source) &, Inputs &>
     {
       return std::ref(static_cast<Inputs &>(source)); // NOTE: forced lvalue

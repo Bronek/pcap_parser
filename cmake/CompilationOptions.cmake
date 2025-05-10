@@ -1,5 +1,10 @@
 # Add compilation options appropriate for the current compiler
 
+# NOTE: https://en.cppreference.com/w/cpp/compiler_support, look for move_only_function
+if(APPLE)
+    message(FATAL_ERROR, "Not supported because libc++ does not implement std::move_only_function")
+endif()
+
 function(append_compilation_options)
     set(options OPTIMIZATION WARNINGS)
     set(Options_NAME ${ARGV0})
@@ -18,7 +23,7 @@ function(append_compilation_options)
             # disable C4456: declaration of 'b' hides previous local declaration
             target_compile_options(${Options_NAME} PUBLIC /W4 /wd4456)
         endif()
-    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "(Apple)?Clang")
+    elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU" OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         if(Options_OPTIMIZATION)
             target_compile_options(${Options_NAME} PRIVATE $<IF:$<CONFIG:Debug>,-O0 -fno-omit-frame-pointer,-O2>)
         endif()
@@ -27,8 +32,8 @@ function(append_compilation_options)
             target_compile_options(${Options_NAME} PUBLIC -Wall -Wextra -Wpedantic -Werror -Wno-redundant-move)
         endif()
 
-        # Use libstdc++ for clang on Linux
-        if(NOT APPLE AND CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        # NOTE: libc++ does not implement std::move_only_function. Use libstdc++ for clang on Linux.
+        if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
             target_compile_options(${Options_NAME} PUBLIC -stdlib=libstdc++)
         endif()
     endif()

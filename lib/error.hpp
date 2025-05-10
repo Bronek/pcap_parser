@@ -8,7 +8,9 @@
 #include <utility>
 
 // NOTE: I am using snake_case for simple types, e.g. non-polymorphic, aggregate etc.
-struct error {
+
+// Representation of a simple error
+struct error final {
   error(auto&& src) requires std::convertible_to<decltype(src), std::string> : what_(std::forward<decltype(src)>(src))
   {
   }
@@ -22,6 +24,7 @@ struct error {
 
   [[nodiscard]] auto what() const noexcept -> std::string const & { return what_; }
 
+  // Used to construct the error side of std::expected
   [[nodiscard]] static auto make(auto &&...args) -> std::unexpected<error>
   {
     return std::unexpected<error>(std::in_place, std::forward<decltype(args)>(args)...);

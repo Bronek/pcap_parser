@@ -1,49 +1,14 @@
-#include "lib/error.hpp"
+#include "lib/find_inputs.hpp"
+#include "lib/functional.hpp"
 #include "lib/pcap_inputs.hpp"
+#include "lib/sort_channels.hpp"
 #include "lib/stats.hpp"
 
 #include <expected>
-#include <filesystem>
 #include <iostream>
 #include <string>
-#include <type_traits>
-#include <utility>
 
-using input_files = std::array<std::string, 2>;
-
-// TODO: write a std::filesystem wrapper to make this testable.
-// TODO: plenty of space for improvement here.
-auto find_inputs(std::string const &strpath) -> std::expected<input_files, error>
-{
-  namespace fs = std::filesystem;
-  fs::path const path(strpath);
-  if (!fs::exists(path)) {
-    return error::make("path ", path.c_str(), " does not exist");
-  }
-  if (fs::status(path).type() != fs::file_type::directory) {
-    return error::make("path ", path.c_str(), " is not a directory");
-  }
-
-  input_files result;
-  int i = 0;
-  for (auto const &direntry : fs::directory_iterator(path)) {
-    if (i > 1) {
-      return error::make("too many files in directory: ", path.c_str());
-    }
-    result[i++] = direntry.path().string();
-  }
-  if (i != 2) {
-    return error::make("too few files in directory: ", path.c_str());
-  }
-  if (fs::status(result[0]).type() != fs::file_type::regular
-      || fs::status(result[1]).type() != fs::file_type::regular) {
-    return error::make("an input is not a regular file: ", result[0], ", ", result[1]);
-  }
-
-  return result;
-}
-
-// NOTE: Not used outside of main.cpp
+// NOTE: exception and fail NOT used outside of main.cpp
 struct exception final {
   int code;
 };
@@ -55,24 +20,6 @@ struct exception final {
   throw exception(code);
 }
 
-namespace detail {
-template <typename> constexpr bool _is_some_expected = false;
-template <typename T, typename E> constexpr bool _is_some_expected<std::expected<T, E> &> = true;
-template <typename T, typename E> constexpr bool _is_some_expected<std::expected<T, E> const &> = true;
-} // namespace detail
-template <typename T>
-concept some_expected = detail::_is_some_expected<T &>;
-
-auto operator|(some_expected auto &&monad, auto &&fn) //
-    -> std::invoke_result_t<decltype(fn), decltype(std::forward<decltype(monad)>(monad).value())>
-{
-  if (monad) {
-    return std::invoke(fn, std::forward<decltype(monad)>(monad).value());
-  }
-  fail(1, monad.error());
-  std::unreachable();
-}
-
 auto main(int argc, char const **argv) -> int
 {
   try {
@@ -80,12 +27,18 @@ auto main(int argc, char const **argv) -> int
       fail(13, "received ", argc - 1, " parameters but expected 1");
     }
 
-    find_inputs(argv[1])   // untested (filesystem calls)
-        | sort             // tested
-        | PcapInputs::make // untested (pcap calls)
-        | Inputs::cast     // untested (trivial)
-        | stats::make      // not implemented
-        | [](stats const &result) { std::cout << result << std::endl; };
+    find_inputs(argv[1])              // untested (direct filesystem calls)
+        | and_then(&sort_channels)    // tested
+        | and_then(&PcapInputs::make) // untested (direct libpcap calls)
+        | transform(Inputs::cast)     // untested (trivial)
+        | and_then(&stats::make)      // not implemented
+        | transform([](stats const &result) -> void {
+            std::cout << result << std::endl; //
+          })
+        | or_else([](error const &err) -> std::expected<void, error> {
+            fail(1, err); // NOTE: noreturn
+          })
+        | discard();
   } catch (exception e) {
     return e.code;
   } catch (std::exception const &e) {
