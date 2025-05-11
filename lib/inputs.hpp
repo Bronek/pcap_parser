@@ -9,17 +9,15 @@
 
 // NOTE: I am using CamelCase for naming of polymorphic classes, like here
 //
-// The reason why this class is polymorphic is to provide a customization point for unit tests. Ideally this
-// customization point would be for pcap functions, but I do not have the time to learn pcap well enough and write an
-// abstraction for these.
+// The reason why this class is polymorphic is to provide a customization point for unit tests.
 struct Inputs {
-  auto next(pair_select which, auto &&fn) -> bool
+  auto next(pair_select which, auto &&callback) -> bool
   {
     switch (which) {
     case pair_select::A:
-      return this->next_a(fn);
+      return this->next_a(std::forward<decltype(callback)>(callback));
     case pair_select::B:
-      return this->next_b(fn);
+      return this->next_b(std::forward<decltype(callback)>(callback));
     default:
       std::unreachable();
     }

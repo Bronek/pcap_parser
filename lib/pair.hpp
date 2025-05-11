@@ -11,7 +11,7 @@ template <typename T> struct pair final {
   T A;
   T B;
 
-  [[nodiscard]] auto operator==(pair const &) const noexcept -> bool = default;
+  [[nodiscard]] constexpr auto operator==(pair const &) const noexcept -> bool = default;
 };
 
 template <typename T>

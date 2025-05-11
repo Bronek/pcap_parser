@@ -24,12 +24,7 @@ private:
   {
     if (next < input.size()) {
       auto const &p = input[next++];
-      if (p.size() > 0) {
-        callback(Inputs::data_t(p.data(), p.size()));
-      } else {
-        static unsigned char const dummy[8] = {};
-        callback(Inputs::data_t(dummy, 0));
-      }
+      callback(Inputs::data_t(p.data(), p.size()));
       return true;
     }
     return false;

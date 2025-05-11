@@ -10,6 +10,8 @@
 using input_files = std::array<std::string, 2>;
 
 // Extract two filenames from a given directory.
-auto find_inputs(std::string const &strpath) -> std::expected<input_files, error>;
+constexpr inline struct find_inputs_t final {
+  [[nodiscard]] auto operator()(std::string const &strpath) const -> std::expected<input_files, error>;
+} find_inputs;
 
 #endif // LIB_FIND_INPUTS

@@ -16,7 +16,7 @@ struct stats {
   pair<std::size_t> faster_count;
   pair<double> advantage_total_ns;
 
-  [[nodiscard]] auto advantage_ns() const noexcept -> pair<double>
+  [[nodiscard]] constexpr auto advantage_ns() const noexcept -> pair<double>
   {
     return {.A = advantage_total_ns.A / static_cast<double>(faster_count.A > 0 ? faster_count.A : 1),
             .B = advantage_total_ns.B / static_cast<double>(faster_count.B > 0 ? faster_count.B : 1)};
@@ -24,9 +24,11 @@ struct stats {
 
   // Produce feed statistics based on network inputs, in pcap format
   using error_callback_t = std::move_only_function<void(std::string)>;
-  static auto make(Inputs &inputs, error_callback_t log = {}) -> stats;
+  static constexpr struct make_t final {
+    [[nodiscard]] auto operator()(Inputs &&inputs, error_callback_t log = {}) const -> stats;
+  } make = {};
 
-  [[nodiscard]] auto operator==(stats const &other) const noexcept -> bool = default;
+  [[nodiscard]] constexpr auto operator==(stats const &other) const noexcept -> bool = default;
 };
 
 inline auto operator<<(std::ostream &output, stats const &self) -> std::ostream &

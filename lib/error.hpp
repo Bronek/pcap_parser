@@ -29,13 +29,13 @@ struct error final {
   auto operator=(error const &) -> error & = default;
   auto operator=(error &&) -> error & = default;
 
-  [[nodiscard]] auto what() const noexcept -> std::string const & { return what_; }
-
   // Used to construct the error side of std::expected
   [[nodiscard]] static auto make(auto &&...args) -> std::unexpected<error>
   {
     return std::unexpected<error>(std::in_place, std::forward<decltype(args)>(args)...);
   }
+
+  [[nodiscard]] auto what() const noexcept -> std::string const & { return what_; }
 
   [[nodiscard]] auto operator==(error const &other) const noexcept -> bool = default;
 
@@ -43,8 +43,9 @@ private:
   std::string what_;
 };
 
-static_assert(std::is_constructible_v<error, char const (&)[6], char const *, char const (&)[16]>);
-
-inline auto operator<<(std::ostream &output, error const &self) -> std::ostream & { return (output << self.what()); }
+inline auto operator<<(std::ostream &output, error const &self) -> std::ostream &
+{ //
+  return (output << self.what());
+}
 
 #endif // LIB_ERROR

@@ -5,7 +5,8 @@
 std::string const channel_A = "14310";
 std::string const channel_B = "15310";
 
-auto sort_channels(std::array<std::string, 2> const &files) -> std::expected<pair<std::string>, error>
+auto sort_channels_t::operator()(std::array<std::string, 2> const &files) const
+    -> std::expected<pair<std::string>, error>
 {
   pair<std::string> ret;
 

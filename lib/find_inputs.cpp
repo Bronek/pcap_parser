@@ -3,32 +3,31 @@
 #include <filesystem>
 
 // TODO: write a std::filesystem wrapper to make this testable.
-// TODO: make it more forgiving (e.g. ignore stray directories)
-auto find_inputs(std::string const &strpath) -> std::expected<input_files, error>
+auto find_inputs_t::operator()(std::string const &strpath) const -> std::expected<input_files, error>
 {
   namespace fs = std::filesystem;
   fs::path const path(strpath);
   if (!fs::exists(path)) {
-    return error::make("path ", path.c_str(), " does not exist");
+    return error::make("path does not exist: ", path.c_str());
   }
   if (fs::status(path).type() != fs::file_type::directory) {
-    return error::make("path ", path.c_str(), " is not a directory");
+    return error::make("path is not a directory: ", path.c_str());
   }
 
   input_files result;
   int i = 0;
   for (auto const &direntry : fs::directory_iterator(path)) {
+    if (!direntry.is_regular_file()) {
+      continue; // Ignore subdirectories etc.
+    }
+
     if (i > 1) {
-      return error::make("too many files in directory: ", path.c_str());
+      return error::make("too many files in directory, expected exactly 2: ", path.c_str());
     }
     result[i++] = direntry.path().string();
   }
   if (i != 2) {
-    return error::make("too few files in directory: ", path.c_str());
-  }
-  if (fs::status(result[0]).type() != fs::file_type::regular
-      || fs::status(result[1]).type() != fs::file_type::regular) {
-    return error::make("an input is not a regular file: ", result[0], ", ", result[1]);
+    return error::make("too few files in directory, expected exactly 2: ", path.c_str());
   }
 
   return result;

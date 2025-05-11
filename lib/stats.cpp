@@ -160,7 +160,7 @@ void update(state_t &state, Inputs::data_t data, stats::error_callback_t &log)
       | discard();
 }
 
-auto stats::make(Inputs &inputs, error_callback_t log) -> stats
+auto stats::make_t::operator()(Inputs &&inputs, error_callback_t log) const -> stats
 {
   stats ret{.packet_count = {}, .dropped_count = {}, .faster_count = {}, .advantage_total_ns = {}};
 
@@ -173,9 +173,13 @@ auto stats::make(Inputs &inputs, error_callback_t log) -> stats
     bool const read_b = state.B.read_next && inputs.next(pair_select::B, [&state, &log](Inputs::data_t const &data) { //
       update(state.B, data, log);
     });
+
     if (!read_a && !read_b) {
       break;
     }
+
+    state.A.read_next = (state.A.sequence <= state.B.sequence);
+    state.B.read_next = (state.B.sequence <= state.A.sequence);
 
     // NOTE: out-of-order & late packets count as dropped, since they failed to arrive when they were needed
     bool const updated_a = state_old.A.sequence < state.A.sequence;
@@ -199,26 +203,27 @@ auto stats::make(Inputs &inputs, error_callback_t log) -> stats
     if (updated_a && updated_b) {
       if (state.A.sequence < state.B.sequence) [[unlikely]] {
         ret.dropped_count.B += 1;
-      } else if (state.B.sequence < state.A.sequence) [[unlikely]] {
-        ret.dropped_count.A += 1;
-      } else { // state.B.sequence == state.A.sequence
-        if (state.A.timestamp < state.B.timestamp) {
-          ret.faster_count.A += 1;
-          ret.advantage_total_ns.A += //
-              static_cast<double>(state.B.timestamp.time_since_epoch().count()
-                                  - state.A.timestamp.time_since_epoch().count());
-        } else if (state.B.timestamp < state.A.timestamp) {
-          ret.faster_count.B += 1;
-          ret.advantage_total_ns.B += //
-              static_cast<double>(state.A.timestamp.time_since_epoch().count()
-                                  - state.B.timestamp.time_since_epoch().count());
-        }
-        // else neither channel has advantage, that's unusual but possible
+        continue;
       }
-    }
+      if (state.B.sequence < state.A.sequence) [[unlikely]] {
+        ret.dropped_count.A += 1;
+        continue;
+      }
 
-    state.A.read_next = (state.A.sequence <= state.B.sequence);
-    state.B.read_next = (state.B.sequence <= state.A.sequence);
+      // state.B.sequence == state.A.sequence
+      if (state.A.timestamp < state.B.timestamp) {
+        ret.faster_count.A += 1;
+        ret.advantage_total_ns.A += //
+            static_cast<double>(state.B.timestamp.time_since_epoch().count()
+                                - state.A.timestamp.time_since_epoch().count());
+      } else if (state.B.timestamp < state.A.timestamp) {
+        ret.faster_count.B += 1;
+        ret.advantage_total_ns.B += //
+            static_cast<double>(state.A.timestamp.time_since_epoch().count()
+                                - state.B.timestamp.time_since_epoch().count());
+      }
+      // else neither channel has advantage, that's unusual but possible
+    }
   }
 
   return ret;

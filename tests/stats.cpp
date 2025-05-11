@@ -180,30 +180,26 @@ TEST_CASE("stats calculation from inputs")
 
   SECTION("empty inputs")
   {
-    MockInputs inputs({.A = {}, .B = {}});
     Logger logger;
-    CHECK(stats::make(inputs, logger.fn()) == zero);
+    CHECK(stats::make(MockInputs({.A = {}, .B = {}}), logger.fn()) == zero);
     CHECK(logger == Logger::empty);
   }
 
   SECTION("incomplete packets")
   {
     {
-      MockInputs inputs({.A = {{}, {}}, .B = {}});
       Logger logger;
-      CHECK(stats::make(inputs, logger.fn()) == zero);
+      CHECK(stats::make(MockInputs({.A = {{}, {}}, .B = {}}), logger.fn()) == zero);
       CHECK(logger == Logger{{{"0,not_enough_data"}, {"0,not_enough_data"}}});
     }
     {
-      MockInputs inputs({.A = {}, .B = {{}, {}}});
       Logger logger;
-      CHECK(stats::make(inputs, logger.fn()) == zero);
+      CHECK(stats::make(MockInputs({.A = {}, .B = {{}, {}}}), logger.fn()) == zero);
       CHECK(logger == Logger{{{"1,not_enough_data"}, {"1,not_enough_data"}}});
     }
     {
-      MockInputs inputs({.A = {{}}, .B = {{}}});
       Logger logger;
-      CHECK(stats::make(inputs, logger.fn()) == zero);
+      CHECK(stats::make(MockInputs({.A = {{}}, .B = {{}}}), logger.fn()) == zero);
       CHECK(logger == Logger{{{"0,not_enough_data"}, {"1,not_enough_data"}}});
     }
   }
@@ -214,9 +210,8 @@ TEST_CASE("stats calculation from inputs")
     {
       packet example = example_packet;
       REQUIRE(set_ethertype(ETHERTYPE_ARP, example));
-      MockInputs inputs({.A = {example}, .B = {}});
       Logger logger;
-      CHECK(stats::make(inputs, logger.fn()) == zero);
+      CHECK(stats::make(MockInputs({.A = {example}, .B = {}}), logger.fn()) == zero);
       CHECK(logger == Logger{{{"0,not_ipv4"}}});
     }
 
@@ -224,9 +219,8 @@ TEST_CASE("stats calculation from inputs")
     {
       packet example = example_packet;
       REQUIRE(set_ip_protocol(IPPROTO_TCP, example));
-      MockInputs inputs({.A = {example}, .B = {}});
       Logger logger;
-      CHECK(stats::make(inputs, logger.fn()) == zero);
+      CHECK(stats::make(MockInputs({.A = {example}, .B = {}}), logger.fn()) == zero);
       CHECK(logger == Logger{{{"0,not_udp"}}});
     }
 
@@ -238,14 +232,13 @@ TEST_CASE("stats calculation from inputs")
       auto const timestampA = get_timestamp(exampleA);
       REQUIRE(timestampA.has_value());
       set_timestamp(*timestampA + 40ns, exampleB);
-      MockInputs inputs({.A = {exampleA}, .B = {exampleB}});
       Logger logger;
       stats const expected = //
           {.packet_count{.A = 1, .B = 1},
            .dropped_count{.A = 0, .B = 0},
            .faster_count{.A = 1, .B = 0},
            .advantage_total_ns{.A = 40.0, .B = 0}};
-      CHECK(stats::make(inputs, logger.fn()) == expected);
+      CHECK(stats::make(MockInputs({.A = {exampleA}, .B = {exampleB}}), logger.fn()) == expected);
       CHECK(logger == Logger::empty);
     }
   }
