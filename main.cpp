@@ -27,12 +27,12 @@ auto main(int argc, char const **argv) -> int
       fail(13, "received ", argc - 1, " parameters but expected 1");
     }
 
-    find_inputs(argv[1])             // untested (direct filesystem calls)
-        | and_then(sort_channels)    // tested in sort_channels.cpp
-        | and_then(PcapInputs::make) // untested (direct libpcap calls)
-        | transform(stats::make)     // tested in stats.cpp (only basic tests)
-        | transform([](stats const &result) -> void {
-            std::cout << result << std::endl; //
+    find_inputs(argv[1])                              // untested (direct filesystem calls)
+        | and_then(sort_channels)                     // tested in sort_channels.cpp
+        | and_then(PcapInputs::make)                  // untested (direct libpcap calls)
+        | transform(stats::make)                      // tested in stats.cpp (minimal) and packet.cpp
+        | transform([](stats const &result) -> void { //
+            std::cout << result << std::endl;
           })
         | or_else([](error const &err) -> std::expected<void, error> {
             fail(1, err); // NOTE: noreturn

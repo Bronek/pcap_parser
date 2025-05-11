@@ -1,11 +1,10 @@
 #include <catch2/catch_all.hpp>
 
-#include <cstddef>
-
 #include <net/ethernet.h>
 #include <netinet/in.h>
 
 #include "mock_inputs.hpp"
+#include "packet_tools.hpp"
 
 #include "lib/stats.hpp"
 
@@ -57,123 +56,6 @@ inline auto operator<<(std::ostream &output, Logger const &self) -> std::ostream
   return output;
 }
 
-static packet const example_packet =                                    //
-    {0x01, 0x00, 0x5e,           0x00, 0x1f, 0x01, 0x10,          0x0e, //
-     0x7e, 0xe7, 0x20,           0x44, 0x08, 0x00, /*IP:*/ 0x45,  0x00,
-     0x00, 0x80, 0xb7,           0x5f, 0x40, 0x00, 0x3d,          /*proto:*/ 0x11,
-     0xdb, 0xf3, 0xcd,           0xd1, 0xdd, 0x46, 0xe0,          0x00,
-     0x1f, 0x01, /*UDP:*/ 0x37,  0xe6, 0x37, 0xe6, /*len:*/ 0x00, 0x10,
-     0x00, 0x00, /*data:*/ 0xbd, 0x49, 0xb6, 0x01, 0x00,          0x00,
-     0x00, 0x00, /*tail:*/ 0x00, 0x00, 0x00, 0x00, 0x00,          0x00,
-     0x00, 0x00, 0x5d,           0x68, 0x06, 0xdc, 0x13,          0x44,
-     0xb1, 0x46, 0x00,           0x00, 0x00, 0x00};
-
-auto set_ethertype(uint16_t type, packet &data) -> bool
-{
-  if (data.size() > 13UL) {
-    (*(uint16_t *)(&data[12])) = ::htons(type);
-    return true;
-  }
-  return false;
-}
-
-auto set_ip_header_len(uint8_t len, packet &data) -> uint8_t
-{
-  if (data.size() > 14UL) {
-    data[14] &= 0xF0;
-    data[14] |= (len / 4);
-    return (data[14] & 0x0F) * 4;
-  }
-  return 0;
-}
-
-auto set_ip_protocol(uint8_t type, packet &data) -> bool
-{
-  if (data.size() > std::size_t(14 + 9)) {
-    data[14 + 9] = type;
-    return true;
-  }
-  return false;
-}
-
-auto set_udp_payload_len(uint16_t len, packet &data) -> bool
-{
-  if (data.size() > 14UL) {
-    uint8_t const ip_header_len = (data[14] & 0x0F) * 4;
-    if (ip_header_len >= 20 && ip_header_len <= 60 && data.size() > std::size_t(14 + ip_header_len + 5)) {
-      (*(uint16_t *)(&data[14 + ip_header_len + 4])) = ::htons(len);
-      return true;
-    }
-  }
-  return false;
-}
-
-auto set_sequence(uint32_t seq, packet &data) -> bool
-{
-  if (data.size() > 14UL) {
-    uint8_t const ip_header_len = (data[14] & 0x0F) * 4;
-    if (data.size() > std::size_t(14 + ip_header_len + 5)) {
-      uint16_t const payload_len = ::ntohs(*(uint16_t const *)(&data[14 + ip_header_len + 4]));
-      if (payload_len > (8 + 4) && data.size() >= std::size_t(14 + ip_header_len + payload_len)) {
-        (*(uint32_t *)(&data[14 + ip_header_len + 8])) = seq;
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-auto get_sequence(packet const &data) -> std::optional<uint32_t>
-{
-  if (data.size() > 14UL) {
-    uint8_t const ip_header_len = (data[14] & 0x0F) * 4;
-    if (data.size() > std::size_t(14 + ip_header_len + 5)) {
-      uint16_t const payload_len = ::ntohs(*(uint16_t const *)(&data[14 + ip_header_len + 4]));
-      if (payload_len > (8 + 4) && data.size() >= std::size_t(14 + ip_header_len + payload_len)) {
-        return {*(uint32_t const *)(&data[14 + ip_header_len + 8])};
-      }
-    }
-  }
-  return {};
-}
-
-auto set_timestamp(std::chrono::system_clock::time_point time, packet &data) -> bool
-{
-  if (data.size() > 14UL) {
-    uint8_t const ip_header_len = (data[14] & 0x0F) * 4;
-    if (data.size() > std::size_t(14 + ip_header_len + 5)) {
-      uint16_t const payload_len = ::ntohs(*(uint16_t const *)(&data[14 + ip_header_len + 4]));
-      if (payload_len > (8 + 4) && data.size() >= std::size_t(14 + ip_header_len + payload_len + 20)) {
-        auto const exact = time.time_since_epoch().count();
-        auto const seconds = exact / 1'000'000'000L;
-        auto const nanos = (exact - (seconds * 1'000'000'000));
-        unsigned char *tail = &data[14 + ip_header_len + payload_len];
-        (*(uint32_t *)(&tail[8])) = ::htonl(seconds);
-        (*(uint32_t *)(&tail[12])) = ::htonl(nanos);
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
-auto get_timestamp(packet const &data) -> std::optional<std::chrono::system_clock::time_point>
-{
-  if (data.size() > 14UL) {
-    uint8_t const ip_header_len = (data[14] & 0x0F) * 4;
-    if (data.size() > std::size_t(14 + ip_header_len + 5)) {
-      uint16_t const payload_len = ::ntohs(*(uint16_t const *)(&data[14 + ip_header_len + 4]));
-      if (payload_len > (8 + 4) && data.size() >= std::size_t(14 + ip_header_len + payload_len + 20)) {
-        unsigned char const *tail = &data[14 + ip_header_len + payload_len];
-        auto const seconds = ::ntohl(*(uint32_t const *)(&tail[8]));
-        auto const nanos = ::ntohl(*(uint32_t const *)(&tail[12]));
-        return {std::chrono::system_clock::time_point{std::chrono::seconds(seconds) + std::chrono::nanoseconds(nanos)}};
-      }
-    }
-  }
-  return {};
-}
-
 TEST_CASE("stats calculation from inputs")
 {
   stats const zero{.packet_count = {}, .dropped_count = {}, .faster_count = {}, .advantage_total_ns = {}};
@@ -190,45 +72,90 @@ TEST_CASE("stats calculation from inputs")
     {
       Logger logger;
       CHECK(stats::make(MockInputs({.A = {{}, {}}, .B = {}}), logger.fn()) == zero);
-      CHECK(logger == Logger{{{"0,not_enough_data"}, {"0,not_enough_data"}}});
+      CHECK(logger == Logger{{{"0,not enough data"}, {"0,not enough data"}}});
     }
     {
       Logger logger;
       CHECK(stats::make(MockInputs({.A = {}, .B = {{}, {}}}), logger.fn()) == zero);
-      CHECK(logger == Logger{{{"1,not_enough_data"}, {"1,not_enough_data"}}});
+      CHECK(logger == Logger{{{"1,not enough data"}, {"1,not enough data"}}});
     }
     {
       Logger logger;
       CHECK(stats::make(MockInputs({.A = {{}}, .B = {{}}}), logger.fn()) == zero);
-      CHECK(logger == Logger{{{"0,not_enough_data"}, {"1,not_enough_data"}}});
+      CHECK(logger == Logger{{{"0,not enough data"}, {"1,not enough data"}}});
     }
   }
 
-  SECTION("some packets")
+  SECTION("bad packets")
   {
-    SECTION("not IPv4")
+    packet_t example = example_packet;
+    REQUIRE(set_ip_protocol(IPPROTO_TCP, example));
+
+    SECTION("channel A")
     {
-      packet example = example_packet;
-      REQUIRE(set_ethertype(ETHERTYPE_ARP, example));
-      Logger logger;
-      CHECK(stats::make(MockInputs({.A = {example}, .B = {}}), logger.fn()) == zero);
-      CHECK(logger == Logger{{{"0,not_ipv4"}}});
+      {
+        Logger logger;
+        CHECK(stats::make(MockInputs({.A = {example}, .B = {}}), logger.fn()) == zero);
+        CHECK(logger == Logger{{{"0,not UDP"}}});
+      }
+
+      {
+        Logger logger;
+        CHECK(stats::make(MockInputs({.A = {example}, .B = {{}}}), logger.fn()) == zero);
+        CHECK(logger == Logger{{{"0,not UDP"}, {"1,not enough data"}}});
+      }
     }
 
-    SECTION("not UDP")
+    SECTION("channel B")
     {
-      packet example = example_packet;
-      REQUIRE(set_ip_protocol(IPPROTO_TCP, example));
-      Logger logger;
-      CHECK(stats::make(MockInputs({.A = {example}, .B = {}}), logger.fn()) == zero);
-      CHECK(logger == Logger{{{"0,not_udp"}}});
+      {
+        Logger logger;
+        CHECK(stats::make(MockInputs({.A = {}, .B = {example}}), logger.fn()) == zero);
+        CHECK(logger == Logger{{{"1,not UDP"}}});
+      }
+
+      {
+        Logger logger;
+        CHECK(stats::make(MockInputs({.A = {{}}, .B = {example}}), logger.fn()) == zero);
+        CHECK(logger == Logger{{{"0,not enough data"}, {"1,not UDP"}}});
+      }
+    }
+  }
+
+  SECTION("some packets with data")
+  {
+    SECTION("one packet in one channel only")
+    {
+      SECTION("channel A")
+      {
+        Logger logger;
+        stats const expected = //
+            {.packet_count{.A = 1, .B = 0},
+             .dropped_count{.A = 0, .B = 0},
+             .faster_count{.A = 0, .B = 0},
+             .advantage_total_ns{.A = 0.0, .B = 0}};
+        CHECK(stats::make(MockInputs({.A = {example_packet}, .B = {}}), logger.fn()) == expected);
+        CHECK(logger == Logger::empty);
+      }
+
+      SECTION("channel B")
+      {
+        Logger logger;
+        stats const expected = //
+            {.packet_count{.A = 0, .B = 1},
+             .dropped_count{.A = 0, .B = 0},
+             .faster_count{.A = 0, .B = 0},
+             .advantage_total_ns{.A = 0.0, .B = 0}};
+        CHECK(stats::make(MockInputs({.A = {}, .B = {example_packet}}), logger.fn()) == expected);
+        CHECK(logger == Logger::empty);
+      }
     }
 
     using namespace std::chrono_literals;
-    SECTION("one packet in each channel")
+    SECTION("one synced packet in each channel")
     {
-      packet exampleA = example_packet;
-      packet exampleB = exampleA;
+      packet_t exampleA = example_packet;
+      packet_t exampleB = exampleA;
       auto const timestampA = get_timestamp(exampleA);
       REQUIRE(timestampA.has_value());
       set_timestamp(*timestampA + 40ns, exampleB);
@@ -239,6 +166,86 @@ TEST_CASE("stats calculation from inputs")
            .faster_count{.A = 1, .B = 0},
            .advantage_total_ns{.A = 40.0, .B = 0}};
       CHECK(stats::make(MockInputs({.A = {exampleA}, .B = {exampleB}}), logger.fn()) == expected);
+      CHECK(logger == Logger::empty);
+    }
+
+    SECTION("different number of packets")
+    {
+      auto const sequence = get_sequence(example_packet);
+      REQUIRE(sequence.has_value());
+      auto const timestamp = get_timestamp(example_packet);
+      REQUIRE(timestamp.has_value());
+
+      packet_t exampleA1 = example_packet;
+      packet_t exampleB1 = exampleA1;
+      set_timestamp(*timestamp - 2us, exampleB1);
+      packet_t exampleB2 = exampleB1;
+      set_timestamp(*timestamp + 300us, exampleB2);
+      set_sequence(*sequence + 2, exampleB2);
+
+      Logger logger;
+      stats const expected = //
+          {.packet_count{.A = 1, .B = 2},
+           .dropped_count{.A = 0, .B = 0},
+           .faster_count{.A = 0, .B = 1},
+           .advantage_total_ns{.A = 0, .B = 2000.0}};
+      CHECK(stats::make(MockInputs({.A = {exampleA1}, .B = {exampleB1, exampleB2}}), logger.fn()) == expected);
+      CHECK(logger == Logger::empty);
+    }
+
+    SECTION("two synced packets")
+    {
+      auto const sequence = get_sequence(example_packet);
+      REQUIRE(sequence.has_value());
+      auto const timestamp = get_timestamp(example_packet);
+      REQUIRE(timestamp.has_value());
+
+      packet_t exampleA1 = example_packet;
+      packet_t exampleA2 = exampleA1;
+      set_timestamp(*timestamp + 120us, exampleA2);
+      set_sequence(*sequence + 1, exampleA2);
+      packet_t exampleB1 = exampleA1;
+      set_timestamp(*timestamp - 2us, exampleB1);
+      packet_t exampleB2 = exampleB1;
+      set_timestamp(*timestamp + 120us, exampleB2);
+      set_sequence(*sequence + 1, exampleB2);
+
+      Logger logger;
+      stats const expected = //
+          {.packet_count{.A = 2, .B = 2},
+           .dropped_count{.A = 0, .B = 0},
+           .faster_count{.A = 0, .B = 1},
+           .advantage_total_ns{.A = 0, .B = 2000.0}};
+      CHECK(stats::make(MockInputs({.A = {exampleA1, exampleA2}, .B = {exampleB1, exampleB2}}), logger.fn())
+            == expected);
+      CHECK(logger == Logger::empty);
+    }
+
+    SECTION("one synced packet, one packet drop")
+    {
+      auto const sequence = get_sequence(example_packet);
+      REQUIRE(sequence.has_value());
+      auto const timestamp = get_timestamp(example_packet);
+      REQUIRE(timestamp.has_value());
+
+      packet_t exampleA1 = example_packet;
+      packet_t exampleA2 = exampleA1;
+      set_timestamp(*timestamp + 120us, exampleA2);
+      set_sequence(*sequence + 1, exampleA2);
+      packet_t exampleB1 = exampleA1;
+      set_timestamp(*timestamp - 2us, exampleB1);
+      packet_t exampleB2 = exampleB1;
+      set_timestamp(*timestamp + 300us, exampleB2);
+      set_sequence(*sequence + 2, exampleB2);
+
+      Logger logger;
+      stats const expected = //
+          {.packet_count{.A = 2, .B = 2},
+           .dropped_count{.A = 0, .B = 1},
+           .faster_count{.A = 0, .B = 1},
+           .advantage_total_ns{.A = 0, .B = 2000.0}};
+      CHECK(stats::make(MockInputs({.A = {exampleA1, exampleA2}, .B = {exampleB1, exampleB2}}), logger.fn())
+            == expected);
       CHECK(logger == Logger::empty);
     }
   }

@@ -3,6 +3,7 @@
 
 #include "error.hpp"
 #include "inputs.hpp"
+#include "packet.hpp"
 
 #include <memory>
 
@@ -11,6 +12,9 @@
 
 // TODO: this is untestable, because I do not have the time to write an abstraction for pcap functions
 struct PcapInputs final : Inputs {
+  using data_t = Inputs::data_t;
+  static_assert(std::is_same_v<packet::data_t, data_t>);
+
   // Create PcapInputs from a pair of pcap files.
   static constexpr struct make_t final {
     [[nodiscard]] auto operator()(pair<std::string> filenames) const -> std::expected<PcapInputs, error>;

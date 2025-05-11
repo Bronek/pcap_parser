@@ -4,23 +4,18 @@
 #include "lib/inputs.hpp"
 #include "lib/pair.hpp"
 
-#include <chrono>
-#include <cstdint>
 #include <initializer_list>
-#include <optional>
 
-#include <netinet/in.h>
-
-using packet = std::vector<unsigned char>;
+using packet_t = std::vector<unsigned char>;
 
 struct MockInputs : Inputs {
-  MockInputs(pair<std::initializer_list<packet>> inputs)
+  MockInputs(pair<std::initializer_list<packet_t>> inputs)
       : cursor_{.A = 0, .B = 0}, inputs_{.A = inputs.A, .B = inputs.B}
   {
   }
 
 private:
-  static auto next_(std::size_t &next, std::vector<packet> const &input, auto &&callback) -> bool
+  static auto next_(std::size_t &next, std::vector<packet_t> const &input, auto &&callback) -> bool
   {
     if (next < input.size()) {
       auto const &p = input[next++];
@@ -39,7 +34,7 @@ private:
   }
 
   pair<std::size_t> cursor_;
-  pair<std::vector<packet>> inputs_;
+  pair<std::vector<packet_t>> inputs_;
 };
 
 #endif // TESTS_MOCK_INPUTS

@@ -1,11 +1,9 @@
 #ifndef LIB_STATS
 #define LIB_STATS
 
-#include "error.hpp"
 #include "inputs.hpp"
 #include "pair.hpp"
 
-#include <expected>
 #include <functional>
 #include <ostream>
 
