@@ -15,7 +15,7 @@ TEST_CASE("packet parsing")
     REQUIRE(set_ethertype(ETHERTYPE_ARP, example));
     auto const ret = packet::parse(example);
     CHECK(not ret.has_value());
-    CHECK(ret.error() == "not IPv4");
+    CHECK(ret.error() == error(error::packet_parse, "not IPv4"));
   }
 
   SECTION("not UDP")
@@ -24,7 +24,7 @@ TEST_CASE("packet parsing")
     REQUIRE(set_ip_protocol(IPPROTO_TCP, example));
     auto const ret = packet::parse(example);
     CHECK(not ret.has_value());
-    CHECK(ret.error() == "not UDP");
+    CHECK(ret.error() == error(error::packet_parse, "not UDP"));
   }
 
   SECTION("too small IP header len")
@@ -33,7 +33,7 @@ TEST_CASE("packet parsing")
     REQUIRE(set_ip_header_len(8, example));
     auto const ret = packet::parse(example);
     CHECK(not ret.has_value());
-    CHECK(ret.error() == "bad IP header");
+    CHECK(ret.error() == error(error::packet_parse, "bad IP header"));
   }
 
   SECTION("too large IP header len")
@@ -43,7 +43,7 @@ TEST_CASE("packet parsing")
     REQUIRE(set_ip_header_len(80, example));
     auto const ret = packet::parse(example);
     CHECK(not ret.has_value());
-    CHECK(ret.error() == "bad IP header");
+    CHECK(ret.error() == error(error::packet_parse, "bad IP header"));
   }
 
   SECTION("bad UDP payload len")
@@ -52,7 +52,7 @@ TEST_CASE("packet parsing")
     REQUIRE(set_udp_payload_len(80, example));
     auto const ret = packet::parse(example);
     CHECK(not ret.has_value());
-    CHECK(ret.error() == "bad UDP header");
+    CHECK(ret.error() == error(error::packet_parse, "bad UDP header"));
   }
 
   SECTION("happy path")

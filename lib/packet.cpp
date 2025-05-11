@@ -62,12 +62,12 @@ auto packet::parse_t::operator()(data_t const &data) const -> std::expected<prop
                  + minimum_payload_length          // UDP header + 4 bytes sequence number
                  + metamako_trailer_length;        // Metamako trailer with timestamp
              if (data.size() < minimum_frame_length) {
-               return error::make("not enough data");
+               return error::make(error::packet_parse, "not enough data");
              }
 
              auto const *eth_header = (::ether_header const *)data.data();
              if (::ntohs(eth_header->ether_type) != ETHERTYPE_IP) {
-               return error::make("not IPv4");
+               return error::make(error::packet_parse, "not IPv4");
              }
 
              return {};
@@ -77,14 +77,14 @@ auto packet::parse_t::operator()(data_t const &data) const -> std::expected<prop
              auto const *ip_header = (data.data() + ethernet_header_length);
              int const ip_header_length = (*ip_header & 0x0F) * 4;
              if (*(ip_header + ip_protocol_offset) != IPPROTO_UDP) {
-               return error::make("not UDP");
+               return error::make(error::packet_parse, "not UDP");
              }
 
              if (ip_header_length < static_cast<int>(minimum_ip_header_length)
                  || ip_header_length > static_cast<int>(maximum_ip_header_length)
                  || data.size() < ethernet_header_length + ip_header_length + minimum_payload_length
                                       + metamako_trailer_length) {
-               return error::make("bad IP header");
+               return error::make(error::packet_parse, "bad IP header");
              }
 
              return udp_t{ip_header_length};
@@ -96,7 +96,7 @@ auto packet::parse_t::operator()(data_t const &data) const -> std::expected<prop
              if (payload_length < minimum_payload_length
                  || data.size()
                         != ethernet_header_length + udp.ip_header_len + payload_length + metamako_trailer_length) {
-               return error::make("bad UDP header");
+               return error::make(error::packet_parse, "bad UDP header");
              }
 
              return payload_t{udp, payload_length};

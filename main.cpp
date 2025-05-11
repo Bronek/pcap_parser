@@ -8,42 +8,30 @@
 #include <iostream>
 #include <string>
 
-// NOTE: exception and fail NOT used outside of main.cpp
-struct exception final {
-  int code;
-};
-
-[[noreturn]] void fail(int code, auto &&...args)
-{
-  ((std::cerr << args), ...);
-  std::cerr << '\n';
-  throw exception(code);
-}
-
 auto main(int argc, char const **argv) -> int
-{
-  try {
+try {
+  auto path = [&]() -> std::expected<std::string, error> {
     if (argc != 2) {
-      fail(13, "received ", argc - 1, " parameters but expected 1");
+      return error::make(error::main, "received ", argc - 1, " parameters but expected 1");
     }
+    return {argv[1]};
+  }();
 
-    find_inputs(argv[1])                              // untested (direct filesystem calls)
-        | and_then(sort_channels)                     // tested in sort_channels.cpp
-        | and_then(PcapInputs::make)                  // untested (direct libpcap calls)
-        | transform(stats::make)                      // tested in stats.cpp (minimal) and packet.cpp
-        | transform([](stats const &result) -> void { //
-            std::cout << result << std::endl;
-          })
-        | or_else([](error const &err) -> std::expected<void, error> {
-            fail(1, err); // NOTE: noreturn
-          })
-        | discard();
-  } catch (exception e) {
-    return e.code;
-  } catch (std::exception const &e) {
-    std::cerr << e.what() << '\n';
-    return 2;
-  }
-
-  return 0;
+  return (std::move(path)              //
+          | and_then(find_inputs)      // untested (direct filesystem calls)
+          | and_then(sort_channels)    // tested in sort_channels.cpp
+          | and_then(PcapInputs::make) // untested (direct libpcap calls)
+          | transform(stats::make)     // tested in stats.cpp (minimal) and packet.cpp
+          | transform([](stats const &result) -> int {
+              std::cout << result << std::endl;
+              return 0;
+            })
+          | or_else([](error const &err) -> std::expected<int, error> {
+              std::cerr << err << std::endl;
+              return err.code();
+            }))
+      .value();
+} catch (std::exception const &e) {
+  std::cerr << e.what() << '\n';
+  return 3;
 }

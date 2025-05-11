@@ -8,7 +8,7 @@
 #include <ostream>
 
 // NOTE: I am using snake_case for simple types, e.g. non-polymorphic, aggregate etc.
-struct stats {
+struct stats final {
   pair<std::size_t> packet_count;
   pair<std::size_t> dropped_count;
   pair<std::size_t> faster_count;

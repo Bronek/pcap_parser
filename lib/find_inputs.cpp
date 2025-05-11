@@ -8,10 +8,10 @@ auto find_inputs_t::operator()(std::string const &strpath) const -> std::expecte
   namespace fs = std::filesystem;
   fs::path const path(strpath);
   if (!fs::exists(path)) {
-    return error::make("path does not exist: ", path.c_str());
+    return error::make(error::find_inputs, "path does not exist: ", path.c_str());
   }
   if (fs::status(path).type() != fs::file_type::directory) {
-    return error::make("path is not a directory: ", path.c_str());
+    return error::make(error::find_inputs, "path is not a directory: ", path.c_str());
   }
 
   input_files result;
@@ -22,12 +22,12 @@ auto find_inputs_t::operator()(std::string const &strpath) const -> std::expecte
     }
 
     if (i > 1) {
-      return error::make("too many files in directory, expected exactly 2: ", path.c_str());
+      return error::make(error::find_inputs, "too many files in directory, expected exactly 2: ", path.c_str());
     }
     result[i++] = direntry.path().string();
   }
   if (i != 2) {
-    return error::make("too few files in directory, expected exactly 2: ", path.c_str());
+    return error::make(error::find_inputs, "too few files in directory, expected exactly 2: ", path.c_str());
   }
 
   return result;

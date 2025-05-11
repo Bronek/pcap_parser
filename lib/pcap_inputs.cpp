@@ -14,13 +14,13 @@ using file_handle = std::unique_ptr<FILE, file_closer>;
   pair<file_handle> files = {.A = file_handle(std::fopen(filenames.A.c_str(), "rb")),
                              .B = file_handle(std::fopen(filenames.B.c_str(), "rb"))};
   if (files.A == nullptr && files.B == nullptr) {
-    return error::make("failed to open both files: ", filenames.A, ", ", filenames.B);
+    return error::make(error::open_pcap, "failed to open both files: ", filenames.A, ", ", filenames.B);
   }
   if (files.A == nullptr) {
-    return error::make("failed to open file A: ", filenames.A);
+    return error::make(error::open_pcap, "failed to open file A: ", filenames.A);
   }
   if (files.B == nullptr) {
-    return error::make("failed to open file B: ", filenames.B);
+    return error::make(error::open_pcap, "failed to open file B: ", filenames.B);
   }
 
   char buffer[PCAP_ERRBUF_SIZE + 1] = {};
@@ -31,13 +31,13 @@ using file_handle = std::unique_ptr<FILE, file_closer>;
   pair<pcap_handle> ret = {.A = pcap_handle(::pcap_fopen_offline(files.A.get(), buffer)), //
                            .B{nullptr}};
   if (ret.A == nullptr) {
-    return error::make("invalid file A, error: ", buffer);
+    return error::make(error::open_pcap, "invalid file A, error: ", buffer);
   }
   [[maybe_unused]] auto *_ = files.A.release(); // now owned by ret.A
 
   ret.B.reset(::pcap_fopen_offline(files.B.get(), buffer));
   if (ret.B == nullptr) {
-    return error::make("invalid file B, error: ", buffer);
+    return error::make(error::open_pcap, "invalid file B, error: ", buffer);
   }
   _ = files.B.release(); // now owned by ret.B
 

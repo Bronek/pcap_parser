@@ -11,7 +11,7 @@
 
 namespace {
 
-struct state_t {
+struct state_t final {
   using duration = std::chrono::system_clock::duration;
   static_assert(std::same_as<duration, std::chrono::nanoseconds>);
   using time_point = std::chrono::system_clock::time_point;

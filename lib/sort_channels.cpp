@@ -11,13 +11,13 @@ auto sort_channels_t::operator()(std::array<std::string, 2> const &files) const
   pair<std::string> ret;
 
   if (files[0].empty()) {
-    return error::make("first filename is empty");
+    return error::make(error::find_channels, "first filename is empty");
   }
   if (files[1].empty()) {
-    return error::make("second filename is empty");
+    return error::make(error::find_channels, "second filename is empty");
   }
   if (files[0] == files[1]) {
-    return error::make("both filenames are identical");
+    return error::make(error::find_channels, "both filenames are identical");
   }
 
   // NOTE: Assumption that channel is encoded as a penultimate group of numbers, '_' on one side and '-' on the other
@@ -30,7 +30,7 @@ auto sort_channels_t::operator()(std::array<std::string, 2> const &files) const
     } else if (matches.size() == 2 && matches[1].str() == channel_B) {
       ret.B = files[0];
     } else {
-      return error::make("unexpected channel of first file: ", files[0]);
+      return error::make(error::find_channels, "unexpected channel of first file: ", files[0]);
     }
   }
 
@@ -41,7 +41,7 @@ auto sort_channels_t::operator()(std::array<std::string, 2> const &files) const
     if (matches.size() == 2 && matches[1].str() == expected) {
       (ret.A.empty() ? ret.A : ret.B) = files[1];
     } else {
-      return error::make("unexpected channel of second file: ", files[1]);
+      return error::make(error::find_channels, "unexpected channel of second file: ", files[1]);
     }
   }
 
