@@ -1,0 +1,14 @@
+.git/
+.idea/
+.idea_modules/
+.build*/
+dist*/
+result*
+.cache/
+.venv/
+.vscode/
+*.iws
+*.swp
+*.swo
+*~
+~$*.doc
